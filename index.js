@@ -1,14 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(express.json());
 app.use(cors());
-
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@mumbaicluster.krljslb.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -18,7 +17,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
@@ -28,7 +27,6 @@ async function run() {
 
     const userCollection = client.db("muHouse").collection("users");
     const houseCollection = client.db("muHouse").collection("houses");
-
 
     //jwt API
     app.post("/jwt", async (req, res) => {
@@ -57,7 +55,6 @@ async function run() {
 
     // users API
     app.get("/users", verifyToken, async (req, res) => {
-
       const result = await userCollection.find().toArray();
       res.send(result);
     });
@@ -103,8 +100,30 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/houses",  async (req, res) => {
-      const result = await houseCollection.find().toArray();
+    app.get("/houses", async (req, res) => {
+      let queryObj = {};
+      let sortObj = {};
+
+      const city = req.query.city;
+      const sortField = req.query.sortField;
+      const sortOrder = req.query.sortOrder;
+
+      if (city) {
+        queryObj.city = city;
+      }
+
+      if (sortField && sortOrder) {
+        sortObj[sortField] = sortOrder;
+      }
+
+      const result = await houseCollection.find(queryObj).sort(sortObj).toArray();
+      res.send(result);
+    });
+
+    app.get("/houses/:id", gateman, async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = houseCollection.findOne(query);
       res.send(result);
     });
 
@@ -122,28 +141,29 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
-          name:item.name,
-          address:item.address,
-          city:item.city,
-          bedroom:item.bedroom,
-          bathroom:item.bathroom,
-          roomSize:item.roomSize,
-          rent:item.rent,
-          available:item.available,
-          phone:item.phone,
-          description:item.description,
-          // image:item.image,
+          name: item.name,
+          address: item.address,
+          city: item.city,
+          bedroom: item.bedroom,
+          bathroom: item.bathroom,
+          roomSize: item.roomSize,
+          rent: item.rent,
+          available: item.available,
+          phone: item.phone,
+          description: item.description,
+          image:item.image,
         },
       };
       const result = await houseCollection.updateOne(filter, updatedDoc);
       res.send(result);
-      console.log(result)
+      console.log(result);
     });
-
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -151,11 +171,10 @@ async function run() {
 }
 run().catch(console.dir);
 
+app.get("/", (req, res) => {
+  res.send("House Hunter is running");
+});
 
-  app.get("/", (req, res) => {
-    res.send("House Hunter is running");
-  });
-  
-  app.listen(port, () => {
-    console.log(`House Hunter is running in the port on: ${port}`);
-  });
+app.listen(port, () => {
+  console.log(`House Hunter is running in the port on: ${port}`);
+});
